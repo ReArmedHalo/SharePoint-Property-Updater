@@ -1,7 +1,7 @@
 <#
 USAGE
 
-1. Dot source this file into your session: . .\Update-SharePointAttributesFromAzureAD.ps1
+1. Dot source this file into your session: . .\Functions.ps1
 2. (Optional) Fetch the properties you need from Azure AD (Use Powershell Get-AzureADUser to find the actual property names, not just the display name of those properties)
 3. Connect to Azure AD (If not already connected): Connect-AzureAD
 4. Fetch the properties to JSON file (examples):
@@ -42,7 +42,10 @@ function Get-AzureADUserPropertiesAsJson {
 
         # Properties from Azure AD to fetch into JSON output
         [Parameter(Mandatory,Position=1)]
-        [String[]] $Properties
+        [String[]] $Properties,
+
+        [Parameter(Position=2)]
+        [String[]] $ExtensionProperties
     )
 
     $users = $null # Holding object
@@ -59,13 +62,23 @@ function Get-AzureADUserPropertiesAsJson {
             if ($user.Mail) {
                 # Mandatory fields
                 $userProperties = [ordered]@{
-                    idName = $item.Mail
+                    idName = $user.Mail
                 }
 
                 # Requested fields
                 foreach ($item in $Properties) {
                     $userProperties += [ordered]@{
                         $item = $user.$item
+                    }
+                }
+
+                # Extension Properties
+                if ($ExtensionProperties) {
+                    foreach ($property in $ExtensionProperties) {
+                        $userEPs = $user.ExtensionProperty
+                        $userProperties += [ordered]@{
+                            $property = $userEPs.$property
+                        }
                     }
                 }
 
@@ -122,18 +135,24 @@ function Update-SPAttributesFromJson {
 }
 
 <#
-$azureProperties = DisplayName,Title,Department,Mobile,PhysicalDeliveryOfficeName
+$azureProperties = @('DisplayName','JobTitle','Department','Mobile','PhysicalDeliveryOfficeName','City','State','PostalCode','TelephoneNumber')
+$azureEProperties = @('extension_5412726b57b245199a74ff6529fff9d2_extensionAttribute1')
 
+# AzureAD = SharePoint
 $propertyMap = @{
     DisplayName = 'cn'
-    Title = 'title'
+    JobTitle = 'title'
     Department = 'Department'
     Mail = 'mail'
     Mobile = 'mobile'
     PhysicalDeliveryOfficeName = 'physicalDeliveryOfficeName'
+    City = ''
+    State = ''
+    PostalCode = ''
+    TelephoneNumber = ''
 }
 
 Connect-AzureAD
-Get-AzureADUserPropertiesAsJson -AllUsers -Properties $azureProperties
+Get-AzureADUserPropertiesAsJson -AllUsers -Properties $azureProperties -ExtensionProperties $azureExtensionProperties
 Update-SPAttributesFromJson -SPAdminUrl '' -Credential (Get-Credential) -PropertyMap $propertyMap -JsonFileUrl ''
 #>
