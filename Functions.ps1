@@ -5,7 +5,7 @@ USAGE
 2. (Optional) Fetch the properties you need from Azure AD (Use Powershell Get-AzureADUser to find the actual property names, not just the display name of those properties)
 3. Connect to Azure AD (If not already connected): Connect-AzureAD
 4. Fetch the properties to JSON file (examples):
-    - NOTE: AzureADUserPropertiesAsJson writes a file called users.json to the current working directory
+    - NOTE: Get-AzureADUserPropertiesAsJson writes a file called users.json to the current working directory
     Get-AzureADUserPropertiesAsJson -AllUsers -Properties Title,DisplayName,etc
     Get-AzureADUserPropertiesAsJson -SearchString "dustin" -Properties Title,DisplayName,etc
 5. Upload the file to SharePoint and obtain the URL
@@ -146,10 +146,12 @@ $propertyMap = @{
     Mail = 'mail'
     Mobile = 'mobile'
     PhysicalDeliveryOfficeName = 'physicalDeliveryOfficeName'
-    City = ''
-    State = ''
-    PostalCode = ''
-    TelephoneNumber = ''
+    City = 'city'
+    State = 'state'
+    PostalCode = 'postalCode'
+    TelephoneNumber = 'telephoneNumber'
+    extension_5412726b57b245199a74ff6529fff9d2_extensionAttribute1 = 'extensionAttribute1'
+    FacsimileTelephoneNumber = 'FacsimileTelephoneNumber'
 }
 
 Connect-AzureAD
