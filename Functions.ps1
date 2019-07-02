@@ -30,6 +30,44 @@ USAGE
 Related: https://docs.microsoft.com/en-us/sharepoint/dev/solution-guidance/bulk-user-profile-update-api-for-sharepoint-online
 #>
 
+# Thanks to: https://gallery.technet.microsoft.com/scriptcenter/Convert-Hashtable-to-d4f1b765
+function ConvertTo-Dictionary
+{
+    #requires -Version 2.0
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [hashtable]
+        $InputObject
+    )
+
+    process
+    {
+        $outputObject = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+
+        foreach ($entry in $InputObject.GetEnumerator())
+        {
+            $newKey = $entry.Key -as [System.String]
+            
+            if ($null -eq $newKey)
+            {
+                throw 'Could not convert key "{0}" of type "{1}" to type "{2}"' -f
+                      $entry.Key,
+                      $entry.Key.GetType().FullName,
+                      "System.String"
+            }
+            elseif ($outputObject.ContainsKey($newKey))
+            {
+                throw "Duplicate key `"$newKey`" detected in input object."
+            }
+
+            $outputObject.Add($newKey, $entry.Value)
+        }
+        return $outputObject
+    }
+}
+
 function Get-AzureADUserPropertiesAsJson {
     param (
         # Get all users?
@@ -104,17 +142,20 @@ function Update-SPAttributesFromJson {
         # Mapping between source file property name and the destination property name in SharePoint
         # Source (AzureAD) property name is the key, SharePoint property is the value
         [Parameter(Mandatory)]
-        [Hashtable] $PropertyMap,
+        [System.Collections.Generic.Dictionary[String,String]] $PropertyMap,
 
         [Parameter(Mandatory)]
         [String] $JsonFileUrl
     )
 
+    $username = $Credential.UserName
+    $password = $Credential.GetNetworkCredential().Password | ConvertTo-SecureString -AsPlainText -Force
+
     # Get instances to the Office 365 tenant using CSOM
     $uri = New-Object System.Uri -ArgumentList $SPAdminUrl
     $context = New-Object Microsoft.SharePoint.Client.ClientContext($uri)
 
-    $context.Credentials = New-Object Microsoft.SharePoint.Client.SharePointOnlineCredentials($Credential.UserName, $Credential.GetNetworkCredential().Password)
+    $context.Credentials = New-Object Microsoft.SharePoint.Client.SharePointOnlineCredentials($username, $password)
     $o365 = New-Object Microsoft.Online.SharePoint.TenantManagement.Office365Tenant($context)
     $context.Load($o365)
 
@@ -125,7 +166,7 @@ function Update-SPAttributesFromJson {
     $userLookupKey="idName"
 
     # Call to queue UPA property import 
-    $workItemId = $o365.QueueImportProfileProperties($userIdType, $userLookupKey, $PropertyMap, $JsonFilePath);
+    $workItemId = $o365.QueueImportProfileProperties($userIdType, $userLookupKey, $PropertyMap, $JsonFileUrl);
 
     # Execute the CSOM command for queuing the import job
     $context.ExecuteQuery();
@@ -135,6 +176,8 @@ function Update-SPAttributesFromJson {
 }
 
 <#
+Import-Module Microsoft.Online.SharePoint.PowerShell -DisableNameChecking
+
 $azureProperties = @('DisplayName','JobTitle','Department','Mobile','PhysicalDeliveryOfficeName','City','State','PostalCode','TelephoneNumber')
 $azureEProperties = @('extension_5412726b57b245199a74ff6529fff9d2_extensionAttribute1')
 
@@ -154,7 +197,11 @@ $propertyMap = @{
     FacsimileTelephoneNumber = 'FacsimileTelephoneNumber'
 }
 
+$pmDict = ConvertTo-Dictionary -InputObject $propertyMap -KeyType "String"
+
+$c = Get-Credentials
+
 Connect-AzureAD
 Get-AzureADUserPropertiesAsJson -AllUsers -Properties $azureProperties -ExtensionProperties $azureExtensionProperties
-Update-SPAttributesFromJson -SPAdminUrl '' -Credential (Get-Credential) -PropertyMap $propertyMap -JsonFileUrl ''
+Update-SPAttributesFromJson -SPAdminUrl 'https://tenant-admin.sharepoint.com' -Credential $c -PropertyMap $pmDict -JsonFileUrl ''
 #>
