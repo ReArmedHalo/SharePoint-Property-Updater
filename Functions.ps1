@@ -228,6 +228,8 @@ try {
     Connect-AzureAD -Credential $Credential -ErrorAction Stop
     $userdata = Get-AzureADUserPropertiesAsJson -AllUsers -Properties $azureProperties -ExtensionProperties $azureExtensionProperties -OutFile "$($WorkingFolder)\userdata.json" -ErrorAction Stop
     $userdata | Select-Object DisplayName,extension_5412726b57b245199a74ff6529fff9d2_extensionAttribute1,PhysicalDeliveryOfficeName,JobTitle,Mail,TelephoneNumber,Mobile | Export-Csv "$($WorkingFolder)\userdata.csv" -NoTypeInformation
+    # Change the columns to friendly names for the CSV with calculated properties!
+    #$userdata | Select-Object @{expression={$_.DisplayName}; label="Display Name"},@{expression={$_.extension_5412726b57b245199a74ff6529fff9d2_extensionAttribute1}; label="Extension"},@{expression={$_.PhysicalDeliveryOfficeName}; label="Office"},@{expression={$_.JobTitle}; label="Title"},Mail,TelephoneNumber,Mobile | Export-Csv "$($WorkingFolder)\userdata.csv" -NoTypeInformation
     Write-FileToSharePoint -SharePointSiteUrl 'https://<tenant>.sharepoint.com/sites/directory' -Credential $Credential -SourceFile "$($WorkingFolder)\userdata.json" -DocumentLibraryName 'Documents' -ErrorAction Stop | Out-Null
     Write-FileToSharePoint -SharePointSiteUrl 'https://<tenant>.sharepoint.com/sites/directory' -Credential $Credential -SourceFile "$($WorkingFolder)\userdata.csv" -DocumentLibraryName 'Documents' | Out-Null
     Update-SPAttributesFromJson -SharePointAdminSiteUrl 'https://<tenant>-admin.sharepoint.com' -Credential $Credential -PropertyMap $propertyMap -JsonFileUrl 'https://<tenant>.sharepoint.com/sites/directory/Documents/userdata.json'
